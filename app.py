@@ -4,6 +4,7 @@ import os
 from sentence_transformers import SentenceTransformer
 from pinecone import Pinecone
 import cohere
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer, pipeline
 
 # Load API keys
 with open("cohere_api_key.txt") as f:
@@ -29,6 +30,12 @@ sentence_transformer_models = {
     "paraphrase-MiniLM-L6-v2": SentenceTransformer('paraphrase-MiniLM-L6-v2')
 }
 
+# Load Hugging Face models
+hf_models = {
+    "deepset/roberta-base-squad2": pipeline('question-answering', model="deepset/roberta-base-squad2", tokenizer="deepset/roberta-base-squad2"),
+    "deepset/minilm-uncased-squad2": pipeline('question-answering', model="deepset/minilm-uncased-squad2", tokenizer="deepset/minilm-uncased-squad2")
+}
+
 # Set up the layout
 # Left sidebar for selection options
 with st.sidebar:
@@ -48,6 +55,8 @@ with st.sidebar:
     # Let the user choose the RAG model for generating answers
     rag_models = {
         "Cohere (command-r-plus)": "command-r-plus",
+        "Hugging Face (roberta-base)": "roberta-base-squad2",
+        "Hugging Face (minilm-uncased)": "minilm-uncased-squad2"
     }
     selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
 
@@ -60,7 +69,9 @@ st.title("Terms and Services Query Interface")
 # Input for user query
 query = st.text_input("Enter your query:")
 
-if query:
+
+# Submit button for the query
+if st.button("Submit Query") and query:
     # Generate query embedding using SentenceTransformer
     query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
     # Query the Pinecone index, filtering by company
@@ -90,12 +101,18 @@ if query:
                 prompt=f"Context: {context}\n\nQuestion: {query}\nAnswer:"
             )
             return response.generations[0].text.strip()
-        else:
-            return "Direct answer functionality with this model is not yet implemented."
+        elif selected_rag_model == "Hugging Face (roberta-base)":
+            nlp = hf_models["deepset/roberta-base-squad2"]
+            response = nlp({'question': query, 'context': context})
+            return response['answer']
+        elif selected_rag_model == "Hugging Face (minilm-uncased)":
+            nlp = hf_models["deepset/minilm-uncased-squad2"]
+            response = nlp({'question': query, 'context': context})
+            return response['answer']
 
     # Generate RAG and direct answers
     rag_answer = generate_answer(query, context)
-    direct_answer = generate_answer(query, None)
+    direct_answer = generate_answer(query, "")
 
     # Display current query and answers
     st.markdown(f"### Query: {query}")
