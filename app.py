@@ -63,7 +63,6 @@ query = st.text_input("Enter your query:")
 if query:
     # Generate query embedding using SentenceTransformer
     query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
-    st.write("Done encoding query.")
     # Query the Pinecone index, filtering by company
     index = pc.Index(selected_index_name)
 
@@ -78,8 +77,10 @@ if query:
         )
 
     results = query_index(index, query_embedding, selected_company)
-    st.write("Done querying index.")
     context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
+
+    # Display the context in a scrollable text area
+    st.text_area("Context", value=context, height=200)
 
     # Placeholder for generating an answer using the selected RAG model
     def generate_answer(query, context=None):
@@ -94,9 +95,7 @@ if query:
 
     # Generate RAG and direct answers
     rag_answer = generate_answer(query, context)
-    st.write("Done generating RAG answer.")
     direct_answer = generate_answer(query, None)
-    st.write("Done generating direct answer.")
 
     # Display current query and answers
     st.markdown(f"### Query: {query}")
