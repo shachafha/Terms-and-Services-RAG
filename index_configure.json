@@ -4,7 +4,11 @@
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
-    "index_name": "terms-company-index",
+    "index_name": "overlapping-200-index",
+    "embedding_model": "all-MiniLM-L6-v2"
+  },
+  {
+    "index_name": "semantic-200-index",
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
