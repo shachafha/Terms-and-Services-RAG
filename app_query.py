@@ -1,5 +1,6 @@
 import streamlit as st
-from utils import load_api_keys, load_index_configurations, load_available_companies, initialize_pinecone, load_models, query_index, generate_answer
+import os
+from utils import load_api_keys, load_index_configurations, load_available_companies, initialize_pinecone, load_models, query_index, generate_answer,zip_company_folder
 
 def main():
     # Load API keys and models
@@ -23,7 +24,8 @@ def main():
         embedding_model = sentence_transformer_models[selected_embedding_model_name]
 
         # Let the user choose RAG model and company
-        rag_models = {"Cohere (command-r-plus)": "command-r-plus", "GPT-2": "gpt2", "Hugging Face (minilm-uncased)": "minilm-uncased-squad2"}
+        rag_models = {"Cohere (command-r-plus)": "command-r-plus", "GPT-2": "gpt2",
+                      "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct"}
         selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
         selected_company = st.selectbox("Select Company", available_companies)
 
@@ -36,16 +38,28 @@ def main():
         index = pc.Index(selected_index_name)
         results = query_index(index, query_embedding, selected_company)
         context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
+
         rag_answer = generate_answer(selected_rag_model, query, context, cohere_api_key, hf_models)
 
         # Display answers and context
         st.markdown("### Rag answer")
         st.write(rag_answer)
 
-        if selected_rag_model in ["GPT-2", "Cohere (command-r-plus)"]:
+        if selected_rag_model in ["GPT-2", "Cohere (command-r-plus)","Qwen2.5-0.5B-Instruct"]:
             direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models)
             st.markdown("### Direct answer")
             st.write(direct_answer)
 
         st.markdown("### Context")
         st.text_area("", value=context, height=300, max_chars=None)
+
+    zip_file_path = f"{selected_company}.zip"
+    download_clicked = st.download_button(
+        label=f"Download {selected_company}'s Raw Files",
+        data=open(zip_company_folder(selected_company), 'rb').read(),
+        file_name=zip_file_path,
+        mime='application/zip'
+    )
+
+    if download_clicked:
+        os.remove(zip_file_path)
