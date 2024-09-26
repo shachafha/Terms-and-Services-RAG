@@ -6,7 +6,6 @@ from utils import load_api_keys, load_index_configurations, load_available_compa
 def main():
     cohere_api_key, pinecone_api_key = load_api_keys()
     index_configurations = load_index_configurations()
-    available_companies = load_available_companies()
     sentence_transformer_models, hf_models = load_models()
     pc = initialize_pinecone(pinecone_api_key)
 
@@ -18,7 +17,8 @@ def main():
         selected_index_config = next(config for config in index_configurations if config['index_name'] == selected_index_name)
         selected_embedding_model_name = selected_index_config['embedding_model']
         embedding_model = sentence_transformer_models[selected_embedding_model_name]
-        rag_models = {"Cohere (command-r-plus)": "command-r-plus", "GPT-2": "gpt2", "Hugging Face (minilm-uncased)": "minilm-uncased-squad2"}
+        rag_models = {"Cohere (command-r-plus)": "command-r-plus", "GPT-2": "gpt2",
+                      "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct"}
         selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
 
     # File upload and processing
@@ -45,6 +45,3 @@ def main():
 
         st.write(f"Download the responses file:")
         st.download_button(label="Download Excel file", data=open(output_file, 'rb').read(), file_name=output_file, mime="application/vnd.ms-excel")
-
-if __name__ == "__main__":
-    main()
