@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from utils import load_api_keys, load_index_configurations, load_available_companies, initialize_pinecone, load_models, query_index, generate_answer,zip_company_folder
+from utils import load_api_keys, load_index_configurations, load_available_companies, initialize_pinecone, load_models, query_index, generate_answer,zip_company_folder,rerank_documents
 
 def main():
     # Load API keys and models
@@ -29,6 +29,9 @@ def main():
         selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
         selected_company = st.selectbox("Select Company", available_companies)
 
+        # Checkbox for reranking
+        use_reranking = st.checkbox("Use reranking", value=False)
+
     # Main area for user query
     st.title("Terms and Services Query Interface")
     query = st.text_input("Enter your query:")
@@ -36,8 +39,16 @@ def main():
     if st.button("Submit") and query:
         query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
         index = pc.Index(selected_index_name)
-        results = query_index(index, query_embedding, selected_company)
-        context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
+        top_k = 2 if selected_index_name == "semantic-200-index" else 5
+        results = query_index(index, query_embedding, selected_company, top_k=top_k)
+
+        if use_reranking:
+            reranked_results = rerank_documents(query, results["matches"], top_n=top_k-1)
+            context = "\n".join([result["metadata"]["text"] for result in reranked_results])
+            numbered_context = "\n".join([f"{i + 1}. {item['metadata']['text']}" for i, item in enumerate(reranked_results)])
+        else:
+            context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
+            numbered_context = "\n".join([f"{i + 1}. {item['metadata']['text']}" for i, item in enumerate(results["matches"])])
 
         rag_answer = generate_answer(selected_rag_model, query, context, cohere_api_key, hf_models)
 
@@ -45,13 +56,12 @@ def main():
         st.markdown("### Rag answer")
         st.write(rag_answer)
 
-        if selected_rag_model in ["GPT-2", "Cohere (command-r-plus)","Qwen2.5-0.5B-Instruct"]:
-            direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models)
-            st.markdown("### Direct answer")
-            st.write(direct_answer)
+        direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models)
+        st.markdown("### Direct answer")
+        st.write(direct_answer)
 
         st.markdown("### Context")
-        st.text_area("", value=context, height=300, max_chars=None)
+        st.text_area("Context", value=numbered_context, height=300, max_chars=None)
 
     zip_file_path = f"{selected_company}.zip"
     download_clicked = st.download_button(

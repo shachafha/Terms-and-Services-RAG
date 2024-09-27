@@ -1,12 +1,13 @@
 import json
 import os
 import zipfile
-
 import torch
-from sentence_transformers import SentenceTransformer
 from pinecone import Pinecone
 import cohere
 from transformers import pipeline,AutoModelForCausalLM, AutoTokenizer
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import euclidean_distances
+import numpy as np
 
 def load_api_keys():
     with open("cohere_api_key.txt") as f:
@@ -67,7 +68,7 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models):
         return response.generations[0].text.strip()
     elif rag_model == "GPT-2":
         generator = hf_models["gpt2"]
-        response = generator(f"Context: {context}\n\nQuestion: {query}\nAnswer:", max_length=700,
+        response = generator(f"Context: {context}\n\nQuestion: {query}\nAnswer:",max_new_tokens=200,
                              num_return_sequences=1)
         return response[0]['generated_text'].split("Answer:")[1].strip()
     elif rag_model == "Qwen2.5-0.5B-Instruct":
@@ -105,3 +106,34 @@ def zip_company_folder(company_name):
                 zipf.write(full_path, relative_path)
 
     return zip_file_path
+
+
+def rerank_documents(query: str, docs, top_n: int = 3,
+                     model_name: str = 'paraphrase-multilingual-mpnet-base-v2') :
+    """
+    Rerank documents using a different embedding model and similarity metric.
+
+    :param query: The query string
+    :param docs: List of documents  to rerank
+    :param top_n: Number of top documents to return
+    :param model_name: Name of the sentence transformer model to use
+    :return: List of top_n most relevant Document objects
+    """
+    # Load the sentence transformer model
+    model = SentenceTransformer(model_name)
+
+    # Encode the query and documents
+    query_embedding = model.encode(query)
+    doc_embeddings = model.encode([doc["metadata"]["text"] for doc in docs])
+
+    # Compute Euclidean distances
+    distances = euclidean_distances([query_embedding], doc_embeddings)[0]
+
+    # Convert distances to similarities (smaller distance = higher similarity)
+    similarities = 1 / (1 + distances)
+
+    # Sort the results in order of similarity
+    top_indices = np.argsort(similarities)[::-1][:top_n]
+
+    # Return the top N documents
+    return [docs[i] for i in top_indices]
