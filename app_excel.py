@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-import time
-from utils import load_api_keys, load_index_configurations, initialize_pinecone, load_models, query_index, generate_answer,rerank_documents,load_available_companies
+from utils import *
 
 def main():
     cohere_api_key, pinecone_api_key = load_api_keys()
@@ -22,6 +21,8 @@ def main():
         selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
         # Checkbox for reranking
         use_reranking = st.checkbox("Use reranking", value=False)
+        # Checkbox for rewriting the query
+        use_rewrite = st.checkbox("Rewrite the query", value=False)
 
     # File upload and processing
     uploaded_file = st.file_uploader("Upload Excel file", type="xlsx")
@@ -42,6 +43,10 @@ def main():
             for index, row in df.iterrows():
                 query = row['question']
                 company = row['company']
+                right_answer = row['right answer']
+                original_query = query
+                if use_rewrite:
+                    query = rewrite_query(query, cohere_api_key)
                 query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
                 index = pc.Index(selected_index_name)
                 top_k = 3 if selected_index_name == "semantic-200-index" else 5
@@ -57,8 +62,12 @@ def main():
                         [f"{i + 1}. {item['metadata']['text']}" for i, item in enumerate(results["matches"])])
 
                 rag_answer = generate_answer(selected_rag_model, query, context, cohere_api_key, hf_models)
-                responses.append({'Question': query, 'Company': company, 'Context': numbered_context, 'RAG Answer': rag_answer})
-                time.sleep(0.5)
+                direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models)
+                response = {'Question': original_query, 'Company': company, 'Context': numbered_context, 'RAG Answer': rag_answer, "Direct Answer": direct_answer, "Right Answer": right_answer}
+                if use_rewrite:
+                    response['Rewritten Query'] = query
+                responses.append(response)
+
 
             result_df = pd.DataFrame(responses)
             output_file = 'responses.xlsx'

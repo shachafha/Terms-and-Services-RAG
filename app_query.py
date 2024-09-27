@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from utils import load_api_keys, load_index_configurations, load_available_companies, initialize_pinecone, load_models, query_index, generate_answer,zip_company_folder,rerank_documents
+from utils import *
 
 def main():
     # Load API keys and models
@@ -32,11 +32,16 @@ def main():
         # Checkbox for reranking
         use_reranking = st.checkbox("Use reranking", value=False)
 
+        # Checkbox for rewriting the query
+        use_rewrite = st.checkbox("Rewrite the query", value=False)
+
     # Main area for user query
     st.title("Terms and Services Query Interface")
     query = st.text_input("Enter your query:")
 
     if st.button("Submit") and query:
+        if use_rewrite:
+            query = rewrite_query(query, cohere_api_key)
         query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
         index = pc.Index(selected_index_name)
         top_k = 2 if selected_index_name == "semantic-200-index" else 5

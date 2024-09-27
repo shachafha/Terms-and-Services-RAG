@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import zipfile
 import torch
 from pinecone import Pinecone
@@ -61,6 +62,8 @@ def query_index(index, query_embedding, selected_company, top_k=5):
 
 def generate_answer(rag_model, query, context, cohere_api_key, hf_models):
     if rag_model == "Cohere (command-r-plus)":
+        # limited to 5 requests per minute
+        time.sleep(0.5)
         response = cohere.Client(cohere_api_key).generate(
             model="command-r-plus",
             prompt=f"Context: {context}\n\nQuestion: {query}\nAnswer:"
@@ -137,3 +140,39 @@ def rerank_documents(query: str, docs, top_n: int = 3,
 
     # Return the top N documents
     return [docs[i] for i in top_indices]
+
+
+def rewrite_query(query, cohere_api_key):
+    """
+    Uses Cohere to rewrite a query for better retrieval in a RAG system.
+
+    Parameters:
+    - query (str): The original user query.
+    - cohere_api_key (str): API key for accessing Cohere's service.
+
+    Returns:
+    - str: The rewritten query.
+    """
+    query_rewrite_template = """You are an AI assistant tasked with reformulating user queries to improve retrieval in a RAG system. 
+    Given the original query, rewrite it to be more specific, detailed, and likely to retrieve relevant information.
+
+    Original query: {original_query}
+
+    Rewritten query:"""
+
+    # Create the prompt by inserting the original query into the template
+    prompt = query_rewrite_template.format(original_query=query)
+
+    # Initialize the Cohere client
+    cohere_client = cohere.Client(cohere_api_key)
+
+    # limited to 5 requests per minute
+    time.sleep(0.5)
+
+    # Generate the rewritten query using Cohere's model
+    response = cohere_client.generate(
+        model="command-r-plus",
+        prompt=prompt
+    )
+    # Extract and return the rewritten query from the response
+    return response.generations[0].text.strip()
