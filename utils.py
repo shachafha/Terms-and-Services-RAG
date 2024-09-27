@@ -9,6 +9,7 @@ from transformers import pipeline,AutoModelForCausalLM, AutoTokenizer
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
+import streamlit as st
 
 def load_api_keys():
     with open("cohere_api_key.txt") as f:
@@ -176,3 +177,26 @@ def rewrite_query(query, cohere_api_key):
     )
     # Extract and return the rewritten query from the response
     return response.generations[0].text.strip()
+
+def check_excel_valid(df,load_available_companies):
+    if not 'company' in df.columns:
+        st.error("The column 'company' is missing in the file.")
+        return False
+
+    if not 'question' in df.columns:
+        st.error("The column 'question' is missing in the file.")
+        return False
+
+    if not 'right answer' in df.columns:
+        st.error("The column 'right answer' is missing in the file.")
+        return False
+
+    # Find companies in the df that are not in available companies
+    invalid_companies = df[~df['company'].isin(load_available_companies())]
+
+    # If there are any invalid companies, display an error message
+    if not invalid_companies.empty:
+        invalid_list = invalid_companies['company'].tolist()
+        st.error(f"The following companies are not in the list: {', '.join(invalid_list)}")
+        return False
+    return True

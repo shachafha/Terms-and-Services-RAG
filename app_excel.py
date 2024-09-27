@@ -30,13 +30,8 @@ def main():
         df = pd.read_excel(uploaded_file)
         st.write("Preview of the uploaded file:", df.head())
 
-        # Find companies in the df that are not in available companies
-        invalid_companies = df[~df['company'].isin(load_available_companies())]
-
-        # If there are any invalid companies, display an error message
-        if not invalid_companies.empty:
-            invalid_list = invalid_companies['company'].tolist()
-            st.error(f"The following companies are not in the list: {', '.join(invalid_list)}")
+        if not check_excel_valid(df,load_available_companies):
+            st.stop()
 
         else:
             responses = []
