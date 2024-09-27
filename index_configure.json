@@ -10,9 +10,5 @@
   {
     "index_name": "semantic-200-index",
     "embedding_model": "all-MiniLM-L6-v2"
-  },
-  {
-    "index_name": "something",
-    "embedding_model": "paraphrase-MiniLM-L6-v2"
   }
 ]

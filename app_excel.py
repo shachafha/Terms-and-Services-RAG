@@ -44,10 +44,10 @@ def main():
                     query = rewrite_query(query, cohere_api_key)
                 query_embedding = embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
                 index = pc.Index(selected_index_name)
-                top_k = 3 if selected_index_name == "semantic-200-index" else 5
+                top_k = 5 if use_reranking else 3
                 results = query_index(index, query_embedding, company, top_k=top_k)
                 if use_reranking:
-                    reranked_results = rerank_documents(query, results["matches"], top_n=top_k - 1)
+                    reranked_results = rerank_documents(query, results["matches"], top_n=3)
                     context = "\n".join([result["metadata"]["text"] for result in reranked_results])
                     numbered_context = "\n".join(
                         [f"{i + 1}. {item['metadata']['text']}" for i, item in enumerate(reranked_results)])
