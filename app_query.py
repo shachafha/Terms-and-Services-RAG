@@ -23,7 +23,7 @@ def main():
         embedding_model = sentence_transformer_models[selected_embedding_model_name]
 
         # Let the user choose RAG model and company
-        rag_models = {"Cohere (command-r-plus)": "command-r-plus", "GPT-2": "gpt2",
+        rag_models = {"Cohere (command-r-plus)": "command-r-plus",
                       "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct"}
         selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
         selected_company = st.selectbox("Select Company", available_companies)

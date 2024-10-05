@@ -5,7 +5,7 @@ import zipfile
 import torch
 from pinecone import Pinecone
 import cohere
-from transformers import pipeline,AutoModelForCausalLM, AutoTokenizer
+from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
@@ -34,6 +34,7 @@ def initialize_pinecone(api_key):
     return Pinecone(api_key=api_key)
 
 
+@st.cache_resource
 def load_models():
     sentence_transformer_models = {
         "all-MiniLM-L6-v2": SentenceTransformer('all-MiniLM-L6-v2'),
@@ -41,10 +42,9 @@ def load_models():
     }
 
     hf_models = {
-        "gpt2": pipeline('text-generation', model='gpt2', device=0),
         "Qwen2.5-0.5B-Instruct": {
             "model": AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct",
-                                                          device_map="auto",torch_dtype=torch.float16),
+                                                          device_map="auto", torch_dtype=torch.float16),
             "tokenizer": AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
         }
     }
@@ -72,7 +72,7 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models):
         return response.generations[0].text.strip()
     elif rag_model == "GPT-2":
         generator = hf_models["gpt2"]
-        response = generator(f"Context: {context}\n\nQuestion: {query}\nAnswer:",max_new_tokens=200,
+        response = generator(f"Context: {context}\n\nQuestion: {query}\nAnswer:", max_new_tokens=200,
                              num_return_sequences=1)
         return response[0]['generated_text'].split("Answer:")[1].strip()
     elif rag_model == "Qwen2.5-0.5B-Instruct":
@@ -113,7 +113,7 @@ def zip_company_folder(company_name):
 
 
 def rerank_documents(query: str, docs, top_n: int = 3,
-                     model_name: str = 'paraphrase-multilingual-mpnet-base-v2') :
+                     model_name: str = 'paraphrase-multilingual-mpnet-base-v2'):
     """
     Rerank documents using a different embedding model and similarity metric.
 
@@ -178,7 +178,8 @@ def rewrite_query(query, cohere_api_key):
     # Extract and return the rewritten query from the response
     return response.generations[0].text.strip()
 
-def check_excel_valid(df,load_available_companies):
+
+def check_excel_valid(df, load_available_companies):
     if not 'company' in df.columns:
         st.error("The column 'company' is missing in the file.")
         return False
