@@ -10,5 +10,9 @@
   {
     "index_name": "semantic-200-index",
     "embedding_model": "all-MiniLM-L6-v2"
+  },
+  {
+    "index_name": "spacy_chunking",
+    "embedding_model": "all-MiniLM-L6-v2"
   }
 ]
