@@ -12,7 +12,11 @@
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
-    "index_name": "spacy_chunking",
+    "index_name": "spacy-index",
+    "embedding_model": "all-MiniLM-L6-v2"
+  },
+  {
+    "index_name": "recursive-index",
     "embedding_model": "all-MiniLM-L6-v2"
   }
 ]
