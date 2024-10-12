@@ -3,7 +3,7 @@ from utils import *
 
 def main():
     # Load API keys and models
-    cohere_api_key, pinecone_api_key, gemini_api_key = load_api_keys()
+    cohere_api_key, pinecone_api_key = load_api_keys()
     index_configurations = load_index_configurations()
     available_companies = load_available_companies()
     sentence_transformer_models, hf_models = load_models()
@@ -12,6 +12,7 @@ def main():
     pc = initialize_pinecone(pinecone_api_key)
     # Initialize Gemini
     genai.configure(api_key=gemini_api_key)
+
 
     # Sidebar for selecting options
     with st.sidebar:
@@ -38,7 +39,12 @@ def main():
         use_rewrite = st.checkbox("Rephrase the query", value=False)
 
     # Main area for user query
-    st.title("Terms and Services Query Interface")
+    col1, col2 = st.columns([1, 10])
+    with col1:
+        st.image('logo.jpeg')
+    with col2:
+        st.title("Terms and Services Query Interface")
+
     query = st.text_input("Enter your query:")
 
     if st.button("Submit") and query:
@@ -69,8 +75,8 @@ def main():
         st.markdown("### Direct answer")
         st.write(direct_answer)
 
-        st.markdown("### Context")
-        with st.expander("Click to view context"):
+        st.markdown("### Raw Context")
+        with st.expander("Click to view raw context"):
             st.write(numbered_context)
 
     zip_file_path = f"{selected_company}.zip"
