@@ -19,10 +19,7 @@ def load_api_keys():
 
     with open("pinecone_api_key.txt") as f:
         pinecone_api_key = f.read().strip()
-
-    with open("gemini_api_key.txt") as f:
-        gemini_api_key = f.read().strip()
-    return cohere_api_key, pinecone_api_key, gemini_api_key
+    return cohere_api_key, pinecone_api_key
 
 
 def load_index_configurations():
@@ -74,7 +71,8 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_fl
                 Conditions of various companies based on your knowledge. Question: {query}."
     rag_prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
                     Conditions of various companies based on your knowledge. The question is: {query}.\
-                    Additional Context: {context}. Please provide an answer based on the context given and also include\
+                    Additional Context from the company's T&C document: {context}. \
+                    Please provide an answer based on the context given and also include\
                      information from your general knowledge ")
     if rag_model == "Cohere (command-r-plus)":
         # limited to 5 requests per minute
@@ -107,10 +105,9 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_fl
         return response
     elif rag_model == "Gemini-1.5-flash":
         # limited to 15 requests per minute
-        time.sleep(0.5)
+        time.sleep(1)
         model = hf_models["Gemini-1.5-flash"]["model"]
-        response = model.generate_content(
-            rag_prompt if rag_flag else prompt)
+        response = model.generate_content(rag_prompt if rag_flag else prompt)
         return response.text
 
 
@@ -172,9 +169,10 @@ def rewrite_query(query, hf_models):
     - str: The rewritten query.
     """
     model = hf_models["Gemini-1.5-flash"]["model"]
-    response = model.generate_content(f'You are an AI assistant tasked with reformulating user queries to improve\
-     retrieval in a RAG system. Given the original query, rewrite it to be more specific, detailed, and likely to \
-     retrieve relevant information. Original query: {query}. Rephrased query:')
+    response = model.generate_content(f'You are an AI assistant tasked with reformulating a user query to improve\
+     retrieval in a RAG system. Given the original query, rewrite it to be more specific and likely to \
+     retrieve relevant information. Original query: {query}. Provide only the reformulated query.')
+    time.sleep(1)
     return response.text
 
 
