@@ -19,7 +19,10 @@ def load_api_keys():
 
     with open("pinecone_api_key.txt") as f:
         pinecone_api_key = f.read().strip()
-    return cohere_api_key, pinecone_api_key
+
+    with open("gemini_api_key.txt") as f:
+        gemini_api_key = f.read
+    return cohere_api_key, pinecone_api_key, gemini_api_key
 
 
 def load_index_configurations():
@@ -67,13 +70,13 @@ def query_index(index, query_embedding, selected_company, top_k=5):
 
 
 def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_flag):
-    prompt = f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
-                Conditions of various companies based on your knowledge. Question: {query}."
+    prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
+                Conditions of various companies based on your knowledge. The question is: {query}.\
+                Please provide a response.")
     rag_prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
                     Conditions of various companies based on your knowledge. The question is: {query}.\
                     Additional Context from the company's T&C document: {context}. \
-                    Please provide an answer based on the context given and also include\
-                     information from your general knowledge ")
+                    Please provide a response based on the context given.")
     if rag_model == "Cohere (command-r-plus)":
         # limited to 5 requests per minute
         time.sleep(0.5)
@@ -174,6 +177,32 @@ def rewrite_query(query, hf_models):
      retrieve relevant information. Original query: {query}. Provide only the reformulated query.')
     time.sleep(1)
     return response.text
+
+
+def enrich_query(query, hf_models):
+    """
+    Uses Gemini to extract keywords and concatenate them to the end of the query.
+
+    Parameters:
+    - query (str): The user query.
+    - hf_models (dict): A dictionary containing the models.
+
+    Returns:
+    - str: The enriched query.
+    """
+    prompt = (f"Given a user query, your task is to identify and extract the most relevant keywords that would \
+    typically appear in the relevant sections in Terms and Conditions documents related to the subject of the query.\
+      The output format should look as follows: '<the original query> : [list of keywords]'\
+     User query: {query}.")
+    model = hf_models["Gemini-1.5-flash"]["model"]
+    response = model.generate_content(prompt)
+    st.write(response.text)
+    time.sleep(1)
+    return response.text
+
+
+def embed_query(query, embedding_model):
+    return embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
 
 
 def check_excel_valid(df, load_available_companies):
