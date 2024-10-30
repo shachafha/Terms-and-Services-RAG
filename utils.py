@@ -21,7 +21,7 @@ def load_api_keys():
         pinecone_api_key = f.read().strip()
 
     with open("gemini_api_key.txt") as f:
-        gemini_api_key = f.read
+        gemini_api_key = f.read().strip()
     return cohere_api_key, pinecone_api_key, gemini_api_key
 
 
@@ -41,8 +41,7 @@ def initialize_pinecone(api_key):
 @st.cache_resource
 def load_models():
     sentence_transformer_models = {
-        "all-MiniLM-L6-v2": SentenceTransformer('all-MiniLM-L6-v2'),
-        "paraphrase-MiniLM-L6-v2": SentenceTransformer('paraphrase-MiniLM-L6-v2')
+        "all-MiniLM-L6-v2": SentenceTransformer('all-MiniLM-L6-v2')
     }
 
     hf_models = {
@@ -227,3 +226,21 @@ def check_excel_valid(df, load_available_companies):
         st.error(f"The following companies are not in the list: {', '.join(invalid_list)}")
         return False
     return True
+
+
+def optimize_response(query, hf_models, rag_answers):
+    seperator = "-"*50
+    answer_list = f"\n{seperator}\n".join([f"{answer}" for answer in rag_answers.values()])
+    prompt = (
+        f"Question: {query}\n\n"
+        "Below are optional answers extracted from various sections of Terms and Services documents. Each answer may differ in relevance, "
+        "accuracy, and specificity. Please review each answer carefully, score each on a scale of 1 to 10 based on how accurately "
+        "and completely it addresses the question, prioritizing relevance, legal accuracy, and detail. Then, select the answer "
+        "with the highest score.\n\n"
+        "Respond ONLY with the exact text of the answer that received the highest score.\n\n"
+        f"Options:\n\n{seperator}\n{answer_list}\n\n"
+    )
+    st.write(prompt)
+    model = hf_models["Gemini-1.5-flash"]["model"]
+    response = model.generate_content(prompt)
+    return response.text
