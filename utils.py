@@ -230,17 +230,18 @@ def check_excel_valid(df, load_available_companies):
 
 
 def retrieve_context(pc, index_name, query_embedding, selected_company, top_k, use_reranking, query):
+    seperator = "-" * 50
     index = pc.Index(index_name)
     results = query_index(index, query_embedding, selected_company, top_k=top_k)
     # Reranking or showing top results
     if use_reranking:
         reranked_results = rerank_documents(query, results["matches"], top_n=3)
         numbered_context = "\n".join(
-            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(reranked_results)])
+            [f"{i + 1}. {item['metadata']['text']}\n{seperator}" for i, item in enumerate(reranked_results)])
         similarity_scores = [item['score'] for item in reranked_results]
     else:
-        numbered_context = "\n".join(
-            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(results["matches"])])
+        numbered_context = "\n ".join(
+            [f"{i + 1}. {item['metadata']['text']}\n{seperator}" for i, item in enumerate(results["matches"])])
         similarity_scores = [item['score'] for item in results['matches']]
     return numbered_context, similarity_scores
 
@@ -280,3 +281,4 @@ def optimize_response(query, hf_models, rag_answers):
     option_part = int(parts[0].split("Option")[-1].strip())
     rag_answer_part = parts[1].strip()
     return option_part, rag_answer_part
+
