@@ -51,12 +51,12 @@ with st.container():
             if message.get('which column') == 3:
                 col3, col4 = st.columns([2, 2])
                 with col3.chat_message(message["role"]):
-                    col3.markdown("*RAG answer:*")
-                    col3.markdown(message["content"])
+                    st.markdown("*RAG answer:*")
+                    st.markdown(message["content"])
             else:
                 with col4.chat_message(message["role"]):
-                    col4.markdown("*Direct answer:*")
-                    col4.markdown(message["content"])
+                    st.markdown("*Direct answer:*")
+                    st.markdown(message["content"])
         elif message.get('expander'):
             with st.expander("Click to view the RAGS raw context chunks"):
                 st.markdown(message["content"])
@@ -118,15 +118,15 @@ with st.container():
             # Display answers
             col3, col4 = st.columns([2, 2])
             with col3.chat_message("assistant"):
-                col3.write_stream(response_generator("*RAG answer:*"))
-                response = col3.write_stream(response_generator(optimal_rag_answer))
+                st.write_stream(response_generator("*RAG answer:*"))
+                response = st.write_stream(response_generator(optimal_rag_answer))
                 # Add assistant response to chat history
             st.session_state.messages.append(
                 {"role": "assistant", "content": response, 'with_columns': True, 'which column': 3})
 
             with col4.chat_message("assistant"):
-                col4.write_stream(response_generator("*Direct answer:*"))
-                response = col4.write_stream(response_generator(direct_answer))
+                st.write_stream(response_generator("*Direct answer:*"))
+                response = st.write_stream(response_generator(direct_answer))
                 # Add assistant response to chat history
             st.session_state.messages.append(
                 {"role": "assistant", "content": response, 'with_columns': True, 'which column': 4})
