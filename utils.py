@@ -32,7 +32,7 @@ def load_index_configurations():
         return json.load(f)
 
 
-def load_available_companies(data_directory='only_english_data'):
+def load_available_companies(data_directory='dataset'):
     return [company for company in os.listdir(data_directory) if os.path.isdir(os.path.join(data_directory, company))]
 
 
@@ -117,7 +117,7 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_fl
 
 def zip_company_folder(company_name):
     zip_file_path = f"{company_name}.zip"
-    company_folder_path = os.path.join('only_english_data', company_name)
+    company_folder_path = os.path.join('dataset', company_name)
 
     # Create a zip file of the company's folder
     with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
