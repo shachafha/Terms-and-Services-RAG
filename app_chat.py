@@ -10,10 +10,8 @@ def main():
     available_companies = load_available_companies()
     sentence_transformer_models, hf_models = load_models()
     index_names = [config['index_name'] for config in index_configurations]
-    rag_models = {"Gemini-1.5-flash": "Gemini-1.5-flash",
-                  "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct",
-                  "Cohere (command-r-plus)": "command-r-plus"}
-
+    rag_model = "Gemini-1.5-flash"
+    embedding_model = sentence_transformer_models["all-MiniLM-L6-v2"]
     # Initialize Pinecone
     pc = initialize_pinecone(pinecone_api_key)
     # Initialize Gemini
@@ -34,8 +32,7 @@ def main():
         # Add assistant response to chat history
 
         # Options displayed as selectboxes and checkboxes
-    rag_model = "Gemini-1.5-flash"
-    embedding_model = sentence_transformer_models["all-MiniLM-L6-v2"]
+
     with st.sidebar:
         selected_company = st.selectbox("Select Company", available_companies, key='company_select')
         use_rewrite = st.toggle("Rephrase Query", value=False, key='rewrite_checkbox',
@@ -113,27 +110,8 @@ def main():
                         # Add assistant response to chat history
                     st.session_state.messages.append({"role": "assistant", "content": response})
 
-                rag_answers = {}
-                rag_context = []
-                for name in index_names:
-                    index = pc.Index(name)
-                    results = query_index(index, query_embedding, selected_company, top_k=top_k)
-                    # Reranking or showing top results
-                    if use_reranking:
-                        reranked_results = rerank_documents(query, results["matches"], top_n=3)
-                        context = "\n".join([result["metadata"]["text"] for result in reranked_results])
-                        numbered_context = "\n".join(
-                            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(reranked_results)])
-                    else:
-                        context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
-                        numbered_context = "\n".join(
-                            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(results["matches"])])
-
-                    # Generate RAG and direct answers
-                    rag_answer = generate_answer(rag_model, query, context, cohere_api_key, hf_models, True)
-                    rag_answers[name] = rag_answer
-                    rag_context.append(numbered_context)
-
+                # Collect RAG responses
+                rag_answers, rag_context, _ = collect_rag_responses(pc, index_names, query_embedding, selected_company, top_k, use_reranking, query, cohere_api_key, hf_models)
                 # Get the optimal RAG answer
                 option_num, optimal_rag_answer = optimize_response(query, hf_models, rag_answers)
                 # Get the direct answer
