@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import time
 import zipfile
 import torch
@@ -11,6 +12,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 import streamlit as st
+import string
 
 
 def load_api_keys():
@@ -195,7 +197,6 @@ def enrich_query(query, hf_models):
      User query: {query}.")
     model = hf_models["Gemini-1.5-flash"]["model"]
     response = model.generate_content(prompt)
-    st.write(response.text)
     time.sleep(1)
     return response.text
 
@@ -228,19 +229,54 @@ def check_excel_valid(df, load_available_companies):
     return True
 
 
+def retrieve_context(pc, index_name, query_embedding, selected_company, top_k, use_reranking, query):
+    index = pc.Index(index_name)
+    results = query_index(index, query_embedding, selected_company, top_k=top_k)
+    # Reranking or showing top results
+    if use_reranking:
+        reranked_results = rerank_documents(query, results["matches"], top_n=3)
+        numbered_context = "\n".join(
+            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(reranked_results)])
+        similarity_scores = [item['score'] for item in reranked_results]
+    else:
+        numbered_context = "\n".join(
+            [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(results["matches"])])
+        similarity_scores = [item['score'] for item in results['matches']]
+    return numbered_context, similarity_scores
+
+
+def collect_rag_responses(pc, index_names, query_embedding, selected_company, top_k, use_reranking, query,
+                          cohere_api_key, hf_models, rag_model="Gemini-1.5-flash"):
+    rag_answers = {}
+    rag_context = []
+    rag_similarity_scores = []
+    for name in index_names:
+        numbered_context, similarity_scores = retrieve_context(pc, name, query_embedding, selected_company, top_k, use_reranking, query)
+        # Generate RAG and direct answers
+        rag_answer = generate_answer(rag_model, query, numbered_context, cohere_api_key, hf_models, True)
+        rag_answers[name] = rag_answer
+        rag_context.append(numbered_context)
+        rag_similarity_scores.append(similarity_scores)
+    return rag_answers, rag_context, rag_similarity_scores
+
+
 def optimize_response(query, hf_models, rag_answers):
-    seperator = "-"*50
-    answer_list = f"\n{seperator}\n".join([f"{answer}" for answer in rag_answers.values()])
+    seperator = "-" * 50
+    labeled_answers = [f"Option {idx + 1}:\n\n {answer}" for idx, answer in enumerate(rag_answers.values())]
+    answer_list = f"\n{seperator}\n".join(labeled_answers)
     prompt = (
         f"Question: {query}\n\n"
-        "Below are optional answers extracted from various sections of Terms and Services documents. Each answer may differ in relevance, "
-        "accuracy, and specificity. Please review each answer carefully, score each on a scale of 1 to 10 based on how accurately "
-        "and completely it addresses the question, prioritizing relevance, legal accuracy, and detail. Then, select the answer "
-        "with the highest score.\n\n"
-        "Respond ONLY with the exact text of the answer that received the highest score.\n\n"
+        "Below are answers from different RAG models that use Terms and Services context. Each answer may vary in relevance, "
+        "accuracy, and specificity. Please carefully evaluate each answer independently based on how well it addresses the question. "
+        "Assign a score from 1 to 10 for each answer, focusing on relevance, confidence, legal accuracy, and detail.\n\n"
+        "After scoring, identify the answer with the highest score and respond ONLY with this exact format, strictly as follows:\n\n"
+        "[Option]: the option number \n"
+        "[RAG Answer]: the exact text of the answer that received the highest score\n\n"
         f"Options:\n\n{seperator}\n{answer_list}\n\n"
     )
-    st.write(prompt)
     model = hf_models["Gemini-1.5-flash"]["model"]
-    response = model.generate_content(prompt)
-    return response.text
+    response = model.generate_content(prompt).text
+    parts = response.split("[RAG Answer]:")
+    option_part = int(parts[0].split("Option")[-1].strip())
+    rag_answer_part = parts[1].strip()
+    return option_part, rag_answer_part
