@@ -5,7 +5,6 @@ import time
 import os
 
 
-
 def main():
     cohere_api_key, pinecone_api_key, gemini_api_key = load_api_keys()
     index_configurations = load_index_configurations()
@@ -18,27 +17,22 @@ def main():
     # Sidebar options
     with st.sidebar:
         st.title("Options")
+        use_optimizer = st.checkbox("Use Optimizer Strategy", help="Enable this option to try out all indexes and "
+                                                                   "have an LLM evaluate all RAG answers and choose the best one")
         index_names = {config['display_name']: config['index_name'] for config in index_configurations}
-        selected_index_name = st.selectbox("Select Index", index_names.keys())
+        selected_index_name = st.selectbox("Select Index", index_names.keys(), disabled=use_optimizer)
         selected_index_config = index_names[selected_index_name]
         embedding_model = sentence_transformer_models['all-MiniLM-L6-v2']
         rag_models = {"Gemini-1.5-flash": "Gemini-1.5-flash",
                       "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct",
                       "Cohere (command-r-plus)": "command-r-plus"}
-        selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys())
-        # Checkbox for reranking
-        use_reranking = st.checkbox("Use reranking", value=False)
-        # Checkbox for rewriting the query
-        use_rewrite = st.checkbox("Rephrase the query", value=False)
-        # Checkbox for enriching the query with keywords
-        use_enrich = st.checkbox("Enrich the query with keywords", value=False)
-
-    # Main area for user query
-    col1, col2 = st.columns([1, 10])
-    with col1:
-        st.image('logo.jpeg')
-    with col2:
-        st.title("Terms and Services Query Interface")
+        selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys(), disabled=use_optimizer)
+        use_rewrite = st.toggle("Rephrase Query", value=False, key='rewrite_checkbox',
+                                help="Enable this option to allow the model to rephrase your query.")
+        use_enrich = st.toggle("Enrich Query", value=False, key='enrich_checkbox',
+                               help="Enable this to automatically include important keywords in your query for better search results.")
+        use_reranking = st.toggle("Rerank Chunks", value=False, key='rerank_checkbox',
+                                  help="Enable this option to re-evaluate and rerank them based on their similarity to your question.")
 
     # Info icon/message
     st.info("**Instructions for Uploading Excel File:**\n"
@@ -51,76 +45,85 @@ def main():
 
     uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
     if st.button("Submit") and uploaded_file:
-        df = pd.read_excel(uploaded_file)
-        st.write("Preview of the uploaded file:", df.head())
+        with st.spinner("Searching through the Terms and Conditions..."):
 
-        if not check_excel_valid(df, load_available_companies):
-            st.stop()
+            df = pd.read_excel(uploaded_file)
+            st.write("Preview of the uploaded file:", df.head())
 
-        else:
-            responses = []
-            batch_size = 5  # Number of rows to process at a time
-            for idx, row in df[:3].iterrows():
-                query = row['question']
-                company = row['company']
-                right_answer = row['right answer']
-                original_query = query
+            if not check_excel_valid(df, load_available_companies):
+                st.stop()
 
-                # Process query based on the flags for rewriting and enrichment
-                if use_rewrite and use_enrich:
-                    query = rewrite_query(query, hf_models)
-                    enriched = enrich_query(query, hf_models)
+            else:
+                responses = []
+                batch_size = 5  # Number of rows to process at a time
+                for idx, row in df[:2].iterrows():
+                    query = row['question']
+                    company = row['company']
+                    right_answer = row['right answer']
+                    original_query = query
 
-                elif use_rewrite:
-                    query = rewrite_query(query, hf_models)
+                    # Process query based on the flags for rewriting and enrichment
+                    if use_rewrite and use_enrich:
+                        query = rewrite_query(query, hf_models)
+                        enriched = enrich_query(query, hf_models)
 
-                elif use_enrich:
-                    enriched = enrich_query(query, hf_models)
-                query_embedding = embed_query(enriched if use_enrich else query, embedding_model)
-                index = pc.Index(selected_index_config)
+                    elif use_rewrite:
+                        query = rewrite_query(query, hf_models)
 
-                top_k = 5 if use_reranking else 3
-                results = query_index(index, query_embedding, company, top_k=top_k)
+                    elif use_enrich:
+                        enriched = enrich_query(query, hf_models)
+                    query_embedding = embed_query(enriched if use_enrich else query, embedding_model)
+                    top_k = 5 if use_reranking else 3
+                    if use_optimizer:
+                        selected_rag_model = "Gemini-1.5-flash"
+                        rag_answers, rag_context, rag_similarity_scores = collect_rag_responses(pc,
+                                                                                                index_names.values(),
+                                                                                                query_embedding,
+                                                                                                company, top_k,
+                                                                                                use_reranking, query,
+                                                                                                cohere_api_key,
+                                                                                                hf_models)
+                        # Get the optimal RAG answer
+                        option_num, rag_answer = optimize_response(query, hf_models, rag_answers)
+                        numbered_context = rag_context[option_num - 1]
+                        similarity_score = rag_similarity_scores[option_num - 1]
+                        time.sleep(20)
+                    else:
+                        numbered_context, similarity_score = retrieve_context(pc, selected_index_config,
+                                                                              query_embedding, company, top_k,
+                                                                              use_reranking, query)
+                        rag_answer = generate_answer(selected_rag_model, query, numbered_context, cohere_api_key,
+                                                     hf_models,
+                                                     True)
+                    direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models, False)
+                    response = {
+                        'Question': original_query, 'Company': company, 'Context': numbered_context,
+                        'RAG Answer': rag_answer, "Direct Answer": direct_answer, "Right Answer": right_answer,
+                        "Similarity Score": similarity_score
+                    }
+                    if use_rewrite:
+                        response['Rephrased Question'] = query
+                    if use_optimizer:
+                        response['Optimal Index'] = index_configurations[option_num - 1]['display_name']
+                    responses.append(response)
 
-                if use_reranking:
-                    reranked_results = rerank_documents(query, results["matches"], top_n=3)
-                    context = "\n".join([result["metadata"]["text"] for result in reranked_results])
-                    numbered_context = "\n".join(
-                        [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(reranked_results)])
-                else:
-                    context = "\n".join([result["metadata"]["text"] for result in results["matches"]])
-                    numbered_context = "\n".join(
-                        [f"{i + 1}. {item['metadata']['text']}\n" for i, item in enumerate(results["matches"])])
+                    # Pause every `batch_size` rows
+                    if (idx + 1) % batch_size == 0:
+                        st.write('sleeping')
+                        time.sleep(30)
 
-                rag_answer = generate_answer(selected_rag_model, query, context, cohere_api_key, hf_models, True)
-                direct_answer = generate_answer(selected_rag_model, query, "", cohere_api_key, hf_models, False)
-                response = {
-                    'Question': original_query, 'Company': company, 'Context': numbered_context,
-                    'RAG Answer': rag_answer, "Direct Answer": direct_answer, "Right Answer": right_answer
-                }
-                if use_rewrite:
-                    response['Rephrased Question'] = query
-                responses.append(response)
+                # Creating and saving the result dataframe
+                result_df = pd.DataFrame(responses)
+                st.write("Preview of the results:", result_df.head())
 
-                # Pause every `batch_size` rows
-                if (idx + 1) % batch_size == 0:
-                    st.write('sleeping')
-                    time.sleep(30)
+                output_dir = "model_responses"
+                # Remove trailing underscores from the generated file name
+                output_file = f"{selected_index_config if not use_optimizer else 'optimizer'}_{selected_rag_model}_{'rerank' if use_reranking else ''}_{'rephrase' if use_rewrite else ''}_{'enrich' if use_enrich else ''}.xlsx".replace(
+                    "__", "_").strip("_")
+                output_path = os.path.join(output_dir, output_file)
+                result_df.to_excel(output_path, index=False)
 
-            # Creating and saving the result dataframe
-            result_df = pd.DataFrame(responses)
-            if use_rewrite:
-                result_df = result_df[
-                    ['Question', 'Rephrased Question', 'Company', 'Context', 'RAG Answer', 'Direct Answer',
-                     'Right Answer']]
-            st.write("Preview of the results:", result_df.head())
-
-            output_dir = "testset"
-            # Remove trailing underscores from the generated file name
-            output_file = f"{selected_index_name}_{selected_rag_model}_{'rerank' if use_reranking else ''}_{'rephrase' if use_rewrite else ''}_{'enrich' if use_enrich else ''}.xlsx".replace(
-                "__", "_").strip("_")
-            output_path = os.path.join(output_dir, output_file)
-            result_df.to_excel(output_path, index=False)
+            st.balloons()
 
             st.download_button(
                 label="Download the results file",
