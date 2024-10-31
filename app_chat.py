@@ -133,7 +133,7 @@ with st.container():
                 {"role": "assistant", "content": response, 'with_columns': True, 'which column': 4})
 
             # Optionally, display context
-            with st.expander("Click to view the RAGS raw context chunks"):
+            with st.expander("Click to view the raw context chunks from the RAG model"):
                 response = st.write_stream(response_generator(rag_context[option_num - 1]))
             st.session_state.messages.append({"role": "assistant", "content": response, 'expander': True})
 
