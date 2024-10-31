@@ -10,7 +10,6 @@ available_companies = load_available_companies()
 sentence_transformer_models, hf_models = load_models()
 index_names = [config['index_name'] for config in index_configurations]
 rag_model = "Gemini-1.5-flash"
-# rag_model = "Cohere (command-r-plus)"
 embedding_model = sentence_transformer_models["all-MiniLM-L6-v2"]
 # Initialize Pinecone
 pc = initialize_pinecone(pinecone_api_key)

@@ -21,10 +21,8 @@ with st.sidebar:
     selected_index_name = st.selectbox("Select Index", index_names.keys(), disabled=use_optimizer)
     selected_index_config = index_names[selected_index_name]
     embedding_model = sentence_transformer_models['all-MiniLM-L6-v2']
-    rag_models = {"Gemini-1.5-flash": "Gemini-1.5-flash",
-                  "Qwen2.5-0.5B-Instruct": "Qwen2.5-0.5B-Instruct",
-                  "Cohere (command-r-plus)": "command-r-plus"}
-    selected_rag_model = st.selectbox("Select RAG Model", rag_models.keys(), disabled=use_optimizer)
+    rag_models = ["Gemini-1.5-flash", "Qwen2.5-0.5B-Instruct", "Cohere (command-r-plus)"]
+    selected_rag_model = st.selectbox("Select RAG Model", rag_models, disabled=use_optimizer)
     use_rewrite = st.toggle("Rephrase Query", value=False, key='rewrite_checkbox',
                             help="Enable this option to allow the model to rephrase your query.")
     use_enrich = st.toggle("Enrich Query", value=False, key='enrich_checkbox',
