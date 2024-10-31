@@ -1,22 +1,22 @@
 [
   {
-    "index_name": "basic-200-index",
-    "embedding_model": "all-MiniLM-L6-v2"
-  },
-  {
     "index_name": "overlapping-200-index",
+    "display_name": "Overlap Strategy index",
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
     "index_name": "semantic-200-index",
+    "display_name": "Semantic Match index",
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
     "index_name": "spacy-index",
+    "display_name": "Spacy NLP index",
     "embedding_model": "all-MiniLM-L6-v2"
   },
   {
     "index_name": "recursive-index",
+    "display_name": "Recursive Search index",
     "embedding_model": "all-MiniLM-L6-v2"
   }
 ]
