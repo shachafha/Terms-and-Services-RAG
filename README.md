@@ -76,7 +76,7 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
 - **Connection issues**: Ensure that you use the correct `MACHINE_DNS` and that SSH port forwarding is properly set up.
 
 ## Example Questions for the RAG Model
--- Choose company:Zalando, ask: What is Zalando's policy on returning items purchased from their partner merchants? 
--- Choose company:Bolt, ask: What is the policy on retaining driver data after their Bolt account is closed?
--- Choose company:Instagram, ask: What is the maximum time it can take for Instagram to respond to a request to review a removed post? 
+- Choose company:Zalando, ask: What is Zalando's policy on returning items purchased from their partner merchants? 
+- Choose company:Bolt, ask: What is the policy on retaining driver data after their Bolt account is closed?
+- Choose company:Instagram, ask: What is the maximum time it can take for Instagram to respond to a request to review a removed post? 
 
