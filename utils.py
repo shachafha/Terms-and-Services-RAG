@@ -16,15 +16,10 @@ import string
 
 
 def load_api_keys():
-    with open("cohere_api_key.txt") as f:
-        cohere_api_key = f.read().strip()
-
-    with open("pinecone_api_key.txt") as f:
-        pinecone_api_key = f.read().strip()
-
-    with open("gemini_api_key.txt") as f:
-        gemini_api_key = f.read().strip()
-    return cohere_api_key, pinecone_api_key, gemini_api_key
+    with open("api_keys.json") as f:
+        api_keys = json.load(f)
+    
+    return api_keys["cohere"], api_keys["pinecone"], api_keys["gemini"]
 
 
 def load_index_configurations():
