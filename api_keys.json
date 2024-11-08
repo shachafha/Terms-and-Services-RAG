@@ -1,5 +1,5 @@
 {
-    "gemini": "",
+    "gemini": "<ADD YOUR GEMINI API KEY HERE>",
     "pinecone": "33e16c7e-0b3b-4eb0-813c-30f5fe9d45e5",
     "cohere": "bUUyBVhqbhCCPsX1WerJammfPY3QWGTgPs0jcxbI"
 }
