@@ -49,6 +49,7 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    If the environment does not exist, create it using the `requirements.txt` file provided:
 
    ```bash
+   conda create -n Test5 python=3.9.18
    conda create --name azureml_py38_PT_and_TF --file requirements.txt
    conda activate azureml_py38_PT_and_TF
    ```
