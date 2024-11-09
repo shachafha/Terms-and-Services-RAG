@@ -53,7 +53,7 @@ if st.button("Submit") and uploaded_file:
         else:
             responses = []
             batch_size = 5  # Number of rows to process at a time
-            for idx, row in df[:1].iterrows():
+            for idx, row in df.iterrows():
                 query = row['question']
                 company = row['company']
                 right_answer = row['right answer']
