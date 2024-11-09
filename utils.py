@@ -1,8 +1,6 @@
 import json
 import os
-import random
 import time
-import zipfile
 import torch
 from pinecone import Pinecone
 import cohere
@@ -12,39 +10,59 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 import streamlit as st
-import string
 
 
 def load_api_keys():
+    """Load API keys for Cohere, Pinecone, and Gemini services from a JSON file.
+
+    :return: Tuple containing Cohere, Pinecone, and Gemini API keys as strings.
+    """
     with open("api_keys.json") as f:
         api_keys = json.load(f)
-    
     return api_keys["cohere"], api_keys["pinecone"], api_keys["gemini"]
 
 
 def load_index_configurations():
+    """Load index configurations from a JSON file.
+
+    :return: Dictionary containing index configurations.
+    """
     with open("index_configure.json") as f:
         return json.load(f)
 
 
 def load_available_companies(data_directory='dataset'):
+    """Load the list of available companies from a specified directory.
+
+    :param data_directory: Path to the directory containing company subdirectories.
+    :return: List of company names.
+    """
     return [company for company in os.listdir(data_directory) if os.path.isdir(os.path.join(data_directory, company))]
 
 
 def initialize_pinecone(api_key):
+    """Initialize and return a Pinecone client using the provided API key.
+
+    :param api_key: API key for Pinecone.
+    :return: Pinecone client instance.
+    """
     return Pinecone(api_key=api_key)
 
 
 @st.cache_resource
 def load_models():
+    """Load SentenceTransformer and HuggingFace models for generating embeddings and responses.
+
+    :return: Dictionary of sentence transformer models and dictionary of HuggingFace models.
+    """
     sentence_transformer_models = {
         "all-MiniLM-L6-v2": SentenceTransformer('all-MiniLM-L6-v2')
     }
 
     hf_models = {
         "Qwen2.5-0.5B-Instruct": {
-            "model": AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct",
-                                                          device_map="auto", torch_dtype=torch.float16),
+            "model": AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct", device_map="auto",
+                                                          torch_dtype=torch.float16),
             "tokenizer": AutoTokenizer.from_pretrained("Qwen/Qwen2.5-0.5B-Instruct")
         },
         "Gemini-1.5-flash": {
@@ -52,11 +70,18 @@ def load_models():
             "tokenizer": None
         }
     }
-
     return sentence_transformer_models, hf_models
 
 
 def query_index(index, query_embedding, selected_company, top_k=5):
+    """Query a Pinecone index to retrieve top K results based on the query embedding.
+
+    :param index: Pinecone index to query.
+    :param query_embedding: Query embedding vector.
+    :param selected_company: Company name to filter the results.
+    :param top_k: Number of top results to retrieve.
+    :return: Query results from the index.
+    """
     return index.query(
         vector=query_embedding,
         top_k=top_k,
@@ -66,23 +91,34 @@ def query_index(index, query_embedding, selected_company, top_k=5):
 
 
 def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_flag):
-    prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
-                Conditions of various companies based on your knowledge. The question is: {query}.\
-                Please provide a response.")
-    rag_prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and \
-                    Conditions of various companies based on your knowledge. The question is: {query}.\
-                    Additional Context from the company's T&C document: {context}. \
-                    Please provide a response based on the context given.")
+    """Generate an answer using specified RAG model with context and query.
+
+    :param rag_model: The RAG model name (e.g., "Cohere", "Qwen2.5-0.5B-Instruct", "Gemini-1.5-flash").
+    :param query: User's question to be answered.
+    :param context: Context information from the company's T&C document.
+    :param cohere_api_key: API key for Cohere.
+    :param hf_models: Dictionary containing HuggingFace models.
+    :param rag_flag: Boolean flag indicating whether to use context in the response generation.
+    :return: Generated response as a string.
+    """
+    prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and "
+              f"Conditions of various companies based on your knowledge. The question is: {query}. Please provide a response.")
+    rag_prompt = (f"You are an AI assistant created to assist users by answering inquiries regarding the Terms and "
+                  f"Conditions of various companies based on your knowledge. The question is: {query}. "
+                  f"Additional Context from the company's T&C document: {context}. Please provide a response based on the context given.")
+
+    # Generate response using selected RAG model
     if rag_model == "Cohere (command-r-plus)":
         # limited to 5 requests per minute
         time.sleep(0.5)
         response = cohere.Client(cohere_api_key).generate(
             model="command-r-plus",
-            # prompt=f"Context: {context}\n\nQuestion: {query}\nAnswer:"
             prompt=rag_prompt if rag_flag else prompt
         )
         return response.generations[0].text.strip()
+
     elif rag_model == "Qwen2.5-0.5B-Instruct":
+        # Processing using Qwen model
         model = hf_models["Qwen2.5-0.5B-Instruct"]["model"]
         tokenizer = hf_models["Qwen2.5-0.5B-Instruct"]["tokenizer"]
 
@@ -102,6 +138,7 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_fl
         ]
         response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
         return response
+
     elif rag_model == "Gemini-1.5-flash":
         # limited to 15 requests per minute
         time.sleep(1)
@@ -110,23 +147,7 @@ def generate_answer(rag_model, query, context, cohere_api_key, hf_models, rag_fl
         return response.text
 
 
-def zip_company_folder(company_name):
-    zip_file_path = f"{company_name}.zip"
-    company_folder_path = os.path.join('dataset', company_name)
-
-    # Create a zip file of the company's folder
-    with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(company_folder_path):
-            for file in files:
-                full_path = os.path.join(root, file)
-                relative_path = os.path.relpath(full_path, company_folder_path)
-                zipf.write(full_path, relative_path)
-
-    return zip_file_path
-
-
-def rerank_documents(query: str, docs, top_n: int = 3,
-                     model_name: str = 'paraphrase-multilingual-mpnet-base-v2'):
+def rerank_documents(query, docs, top_n=3, model_name='paraphrase-multilingual-mpnet-base-v2'):
     """
     Rerank documents using a different embedding model and similarity metric.
 
@@ -151,29 +172,23 @@ def rerank_documents(query: str, docs, top_n: int = 3,
 
     # Sort the results in order of similarity
     top_indices = np.argsort(similarities)[::-1][:top_n]
-
-    # Return the top N documents
     return [docs[i] for i in top_indices]
 
 
 def rewrite_query(query, hf_models):
     """
-    Uses Gemini to rewrite a query for better retrieval in a RAG system.
+    Rewrite the user query for improved retrieval performance in a RAG system.
 
-    Parameters:
-    - query (str): The original user query.
-    - hf_models (dict): A dictionary containing the models.
-
-    Returns:
-    - str: The rewritten query.
+    :param query: The original user query.
+    :param hf_models: Dictionary containing the models.
+    :return: Reformulated query as a string.
     """
     model = hf_models["Gemini-1.5-flash"]["model"]
-    response = model.generate_content(f'You are an AI assistant tasked with reformulating a user query to improve\
-     retrieval in a RAG system. Given the original query, rewrite it to be more specific and likely to \
-     retrieve relevant information. Original query: {query}. Provide only the reformulated query.')
+    response = model.generate_content(f'You are an AI assistant tasked with reformulating a user query to improve '
+                                      f'retrieval in a RAG system. Given the original query, rewrite it to be more '
+                                      f'specific and likely to retrieve relevant information. Original query: {query}.')
     time.sleep(1)
     return response.text
-
 
 def enrich_query(query, hf_models):
     """
@@ -195,12 +210,25 @@ def enrich_query(query, hf_models):
     time.sleep(1)
     return response.text
 
-
 def embed_query(query, embedding_model):
+    """
+    Generate embedding for a query using a specified embedding model.
+
+    :param query: The user query.
+    :param embedding_model: The embedding model to use.
+    :return: Embedding vector as a list.
+    """
     return embedding_model.encode([query], convert_to_tensor=True).tolist()[0]
 
 
 def check_excel_valid(df, load_available_companies):
+    """
+    Validate the Excel file's format and contents, ensuring required columns and valid company names.
+
+    :param df: DataFrame of the uploaded Excel file.
+    :param load_available_companies: Function to load available companies.
+    :return: Boolean indicating the file's validity.
+    """
     if not 'company' in df.columns:
         st.error("The column 'company' is missing in the file.")
         return False
@@ -225,6 +253,18 @@ def check_excel_valid(df, load_available_companies):
 
 
 def retrieve_context(pc, index_name, query_embedding, selected_company, top_k, use_reranking, query):
+    """
+    Retrieve and optionally rerank context from a specified Pinecone index for a given query embedding.
+
+    :param pc: Pinecone client instance.
+    :param index_name: Name of the Pinecone index.
+    :param query_embedding: Query embedding vector.
+    :param selected_company: Company name for filtering results.
+    :param top_k: Number of top results to retrieve.
+    :param use_reranking: Boolean flag to rerank results.
+    :param query: Original query string.
+    :return: Tuple containing numbered context and similarity scores.
+    """
     seperator = "-" * 50
     index = pc.Index(index_name)
     results = query_index(index, query_embedding, selected_company, top_k=top_k)
@@ -243,11 +283,27 @@ def retrieve_context(pc, index_name, query_embedding, selected_company, top_k, u
 
 def collect_rag_responses(pc, index_names, query_embedding, selected_company, top_k, use_reranking, query,
                           cohere_api_key, hf_models, rag_model="Gemini-1.5-flash"):
+    """
+    Collect responses from RAG models across multiple indexes and generate answers for each.
+
+    :param pc: Pinecone client instance.
+    :param index_names: List of index names to query.
+    :param query_embedding: Embedding vector for the query.
+    :param selected_company: Company name to filter results.
+    :param top_k: Number of top results to retrieve from each index.
+    :param use_reranking: Boolean indicating if reranking should be applied.
+    :param query: Original user query.
+    :param cohere_api_key: API key for Cohere.
+    :param hf_models: Dictionary containing HuggingFace models.
+    :param rag_model: RAG model name to use for answer generation.
+    :return: Tuple containing dictionary of RAG answers, list of contexts, and similarity scores.
+    """
     rag_answers = {}
     rag_context = []
     rag_similarity_scores = []
     for name in index_names:
-        numbered_context, similarity_scores = retrieve_context(pc, name, query_embedding, selected_company, top_k, use_reranking, query)
+        numbered_context, similarity_scores = retrieve_context(pc, name, query_embedding, selected_company, top_k,
+                                                               use_reranking, query)
         # Generate RAG and direct answers
         rag_answer = generate_answer(rag_model, query, numbered_context, cohere_api_key, hf_models, True)
         rag_answers[name] = rag_answer
@@ -257,6 +313,14 @@ def collect_rag_responses(pc, index_names, query_embedding, selected_company, to
 
 
 def optimize_response(query, hf_models, rag_answers):
+    """
+    Optimize and select the most relevant answer from multiple RAG model responses.
+
+    :param query: The original user query.
+    :param hf_models: Dictionary containing HuggingFace models.
+    :param rag_answers: Dictionary of answers from different RAG models.
+    :return: Tuple containing the selected option number and the optimized answer.
+    """
     seperator = "-" * 50
     labeled_answers = [f"Option {idx + 1}:\n\n {answer}" for idx, answer in enumerate(rag_answers.values())]
     answer_list = f"\n{seperator}\n".join(labeled_answers)
@@ -276,4 +340,3 @@ def optimize_response(query, hf_models, rag_answers):
     option_part = int(parts[0].split("Option")[-1].strip())
     rag_answer_part = parts[1].strip()
     return option_part, rag_answer_part
-
