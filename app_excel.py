@@ -8,6 +8,7 @@ import os
 cohere_api_key, pinecone_api_key, gemini_api_key = load_api_keys()
 index_configurations = load_index_configurations()
 sentence_transformer_models, hf_models = load_models()
+
 # Initialize Pinecone
 pc = initialize_pinecone(pinecone_api_key)
 # Initialize Gemini

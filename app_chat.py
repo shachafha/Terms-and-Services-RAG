@@ -11,6 +11,7 @@ sentence_transformer_models, hf_models = load_models()
 index_names = [config['index_name'] for config in index_configurations]
 rag_model = "Gemini-1.5-flash"
 embedding_model = sentence_transformer_models["all-MiniLM-L6-v2"]
+
 # Initialize Pinecone
 pc = initialize_pinecone(pinecone_api_key)
 # Initialize Gemini
@@ -27,7 +28,7 @@ with st.chat_message("assistant"):
     response = st.markdown("Hi there! 👋 \n\n Need help with terms, policies, or services? I'm here to assist you. "
                            "Please choose a company, select any optional features, and then type your question below. "
                            "Together, we’ll find the answers you need!")
-# Add assistant response to chat history
+# Enhancements selection
 with st.sidebar:
     selected_company = st.selectbox("Select Company", available_companies, key='company_select_chat')
     use_rewrite = st.toggle("Rephrase Query", value=False, key='rewrite_checkbox_chat',
@@ -63,7 +64,6 @@ with st.container():
         else:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
-    # Display assistant response in chat message container
 
     # When a query is entered
     if query:
@@ -72,9 +72,8 @@ with st.container():
             st.markdown(query)
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": query})
-        # Create a new chat message for the human (user)
-
         time.sleep(1)
+
         with st.chat_message("assistant"):
             response = st.write_stream(response_generator(
                 "Thank you for your question! I'm searching through the Terms and Conditions documents to find "
