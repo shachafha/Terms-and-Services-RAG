@@ -113,6 +113,8 @@ if st.button("Submit") and uploaded_file:
             output_file = f"{selected_index_config if not use_optimizer else 'optimizer'}_{selected_rag_model}_{'rerank' if use_reranking else ''}_{'rephrase' if use_rewrite else ''}_{'enrich' if use_enrich else ''}.xlsx".replace(
                 "__", "_").strip("_")
             output_path = os.path.join(output_dir, output_file)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
             result_df.to_excel(output_path, index=False)
 
         st.balloons()
