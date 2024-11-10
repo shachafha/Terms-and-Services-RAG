@@ -40,7 +40,13 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    ```
 
 5. **Activate the conda environment**  
-   Run the following commands to create and activate the project environment:
+   Run the following command to activate the existing environment:
+
+   ```bash
+   conda activate RagTermsAndServices
+   ```
+
+   If the environment does not exist, create it using the `requirements.txt` file provided:
 
    ```bash
    conda create -n RagTermsAndServices python=3.9.18
