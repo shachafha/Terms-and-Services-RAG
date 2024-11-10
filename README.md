@@ -40,18 +40,12 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    ```
 
 5. **Activate the conda environment**  
-   Run the following command to activate the existing environment:
+   Run the following commands to create and activate the project environment:
 
    ```bash
-   conda activate azureml_py38_PT_and_TF
-   ```
-
-   If the environment does not exist, create it using the `requirements.txt` file provided:
-
-   ```bash
-   conda create -n Test5 python=3.9.18
-   conda create --name azureml_py38_PT_and_TF --file requirements.txt
-   conda activate azureml_py38_PT_and_TF
+   conda create -n RagTermsAndServices python=3.9.18
+   conda activate RagTermsAndServices
+   pip install -r requirements.txt
    ```
 
 6. **Run the Streamlit app**  
