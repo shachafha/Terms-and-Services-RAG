@@ -58,6 +58,7 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    Start the Streamlit app with the following command:
 
    ```bash
+   cd src
    streamlit run app.py --server.port 8501 --server.enableCORS false
    ```
 
