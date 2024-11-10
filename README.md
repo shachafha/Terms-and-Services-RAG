@@ -26,7 +26,7 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    If the project is not already on the machine, clone the repository using the following command:
 
    ```bash
-   git clone https://github.com/your-repository-url.git
+   git clone https://github.com/shachafha/Terms-and-Services-RAG.git
    ```
 
    Skip this step if the project is already cloned.
