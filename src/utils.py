@@ -186,7 +186,8 @@ def rewrite_query(query, hf_models):
     model = hf_models["Gemini-1.5-flash"]["model"]
     response = model.generate_content(f'You are an AI assistant tasked with reformulating a user query to improve '
                                       f'retrieval in a RAG system. Given the original query, rewrite it to be more '
-                                      f'specific and likely to retrieve relevant information. Original query: {query}.')
+                                      f'specific and likely to retrieve relevant information. Original query: {query}.'
+                                      f'Provide only the reformulated query.')
     time.sleep(1)
     return response.text
 
