@@ -35,7 +35,7 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    Change into the project directory:
 
    ```bash
-   cd Terms-and-Services-RAG
+   cd Terms-and-Services-RAG/src
    
    ```
 
@@ -53,16 +53,22 @@ This project processes Terms and Services data using a Retrieval-Augmented Gener
    conda activate RagTermsAndServices
    pip install -r requirements.txt
    ```
-
-6. **Run the Streamlit app**  
+6. ** Add Gemini API Key**
+   Add your Gemini API key to the `api_keys.json` file.
+   This key is required to authenticate with Gemini services and enable project functionality.
+   you can do it manually be opening the file and edit it or using this line. where your_gemini_api_key_here
+   change your_gemini_api_key_here to the correct api key.
+   ```bash
+   sed -i 's/<ADD YOUR API KEY HERE>/your_gemini_api_key_here/' api_keys.json
+   ```
+7. **Run the Streamlit app**  
    Start the Streamlit app with the following command:
 
    ```bash
-   cd src
    streamlit run app.py --server.port 8501 --server.enableCORS false
    ```
 
-7. **Access the app**  
+8. **Access the app**  
    Open a web browser and go to:
 
    ```text
